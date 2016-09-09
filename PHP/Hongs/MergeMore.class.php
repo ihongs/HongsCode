@@ -33,7 +33,7 @@ class MergeMore {
 
     /**
      * 填充默认的空数据
-     * 注意: 此方法 $sub 不能为空也不能为 _ 结尾, 无法处理合并操作
+     * 注意: $sub 规则同 mixing, 当需要合并数据时, 必须提供 $def
      * @param array  $map 映射表
      * @param string $sub 下联键
      * @param array  $def 默认值
