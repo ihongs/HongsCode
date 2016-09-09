@@ -529,7 +529,7 @@ class FetchCase {
         }
 
         if ($this->_order) {
-            $this->parseOrder($field, $this->_order, $tx);
+            $this->parseOrder($order, $this->_order, $tx);
         }
 
         // 递归关联
