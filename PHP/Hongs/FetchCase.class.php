@@ -369,7 +369,7 @@ class FetchCase {
     }
 
     protected function transAllow($n, $pn = '', $pr = false) {
-        $tn = $this->_alias ? $this->_alias : (!$pn ? '_' : $this->_table);
+        $tn = $this->_alias ? $this->_alias : $this->_table;
         $tx = $this->_joins || $pn ? '`'.$tn.'`.' : '';
         $tz = $pn ? $tn.'_' : '' ;
         $af = $this->_allow[ $n ];
