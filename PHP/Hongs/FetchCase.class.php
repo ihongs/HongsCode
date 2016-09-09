@@ -239,7 +239,6 @@ class FetchCase {
     protected function transField($v, $af = null) {
         $ic = array();
         $ec = array();
-        $pf = array();
         if (! isset($af)) {
             $af = $this->transAllow('field');
         }
