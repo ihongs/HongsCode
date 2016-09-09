@@ -25,7 +25,7 @@ $sql = (new FetchCase())
     ->toSelect();
 echo $sql.PHP_EOL.PHP_EOL;
 
-//** 操作插入语句 **/
+//** 生成更新 SQL **/
 
 $req = array(
     'title' => 'abc',
@@ -50,7 +50,7 @@ $sql = $fc
     ->toDelete();
 echo $sql.PHP_EOL.PHP_EOL;
 
-//** 手动关联 **/
+//** 列表关联 **/
 
 require_once __DIR__.'/MergeMore.class.php';
 use \Hongs\MergeMore;
@@ -81,7 +81,7 @@ $mm->mixing($list2, $map, 'meeting_id', 'member_');
 //$mm->pading($map, 'member_');
 print_r($list1); echo PHP_EOL;
 
-// 数据校验
+//** 数据校验 **/
 
 require_once __DIR__.'/Validator.class.php';
 use \Hongs\Validator;
