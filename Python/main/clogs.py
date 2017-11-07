@@ -79,7 +79,7 @@ if  __name__ == "__main__":
             continue
 
         rb = ln
-        mt = ln.strip().split(' ', 6) # 日志拆解, 此处格式: Date Time ClientAddr ActionPath
+        mt = ln.strip().split(' ', 6) # 日志拆解, 此处格式: Date Time Level ClientAddr ActionPath
 
         if  tn and tn.match(mt[4]):
             rf = True
