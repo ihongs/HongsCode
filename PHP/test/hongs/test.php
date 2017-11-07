@@ -8,6 +8,7 @@ define('PWD', __DIR__.'/../../main/hongs');
 
 require_once PWD.'/FetchCase.class.php';
 use hongs\FetchCase;
+use hongs\WhereCase;
 
 $req = array(
     'status' => "jlsdf```abc'''def",
@@ -18,15 +19,16 @@ $req = array(
     'ob' => 'title',
     'wd' => 'last day',
 );
-$sql = (new FetchCase())
+$fet = (new FetchCase())
     ->from  ('a_meeting_base_info')
     ->join  ('a_company_base_info', 'company', '~.id = ^.company_id', 'INNER')
     ->allow (array('meeting_id', 'title', 'summary', 'status', 'company.id', 'company.title', 'company.summary'))
     ->allow (array('title', 'summary'), 'wd')
     ->allow (array('-summary'), 'ob')
-    ->trans ($req)
-    ->toSelect();
-echo $sql.PHP_EOL.PHP_EOL;
+    ->trans ($req);
+$sql  = $fet->toSelect(  );
+echo $sql.PHP_EOL.PHP_EOL ;
+print_r($fet->toSelect(2));
 
 //** 操作插入语句 **/
 
