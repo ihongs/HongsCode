@@ -915,6 +915,10 @@ class FetchCase {
 
 }
 
+/**
+ * 条件用例, 可用于支撑复杂嵌套条件
+ * @author HuangHong<ihongs@live.cn>
+ */
 class WhereCase {
     protected $_where;
     protected $_param;
