@@ -19,6 +19,7 @@ class FetchCase {
     protected $_joins = array();
     protected $_saves = array();
     protected $_allow = array();
+    protected $_param = null;
 
     //* 查询设置 */
 
@@ -252,7 +253,7 @@ class FetchCase {
             }
 
             // 通配符处理
-            if (substr($f, -2) == '_*' ) {
+            if (substr($f, -2 ) == '_*') {
                 $f = substr($f , 0 , -1);
                 $l = strlen($f);
                 foreach($af as $k => $v) {
@@ -293,9 +294,9 @@ class FetchCase {
         foreach($v as $c) {
             if (substr($c, 0, 1) == '-') {
                 $c = substr($c, 1);
-                $e = ' DESC';
+                $e = 'DESC' ;
             } else {
-                $e = ' ASC' ;
+                $e =  'ASC' ;
             }
 
                 $x = $af[$c];
@@ -309,24 +310,26 @@ class FetchCase {
 
     protected function transFinds($v, $af = null) {
         $wd = array();
+        $wp = array();
         if (! isset($af)) {
             $af = $this->transAllow('finds');
         }
 
         foreach($v as $t) {
             $t = trim($t);
-            if (''=== $t) {
+            if ('' == $t) {
                 continue ;
             }
-            $t = preg_replace(' /[\/%_\[\]]/' , '/$0' , $t );
-            $t = $this->escapValue($t);
+            $t = '%'. $this->escapLikes ($t) .'%';
             foreach ($af as $f) {
-                $wd[] = $f.' LIKE \'%'.$t.'%\' ESCAPE \'/\'';
+                $wd[] = $f.' LIKE ? ESCAPE \'/\'';
+                $wp[] = $t;
             }
         }
 
         // 多组搜索为或关系
         $wd = '('.implode(' OR ', $wd).')';
+        $wd = new WhereCase($wd , $wp);
 
         return $wd;
     }
@@ -446,7 +449,7 @@ class FetchCase {
             }
             if ($this->isStdField($n)
             &&  $this->isStdField($c)) {
-                $al[$c]  = $n;
+                $al[$c] = '`'.$n.'`';
             }
         }
 
@@ -472,24 +475,6 @@ class FetchCase {
     }
 
     //* 用例结果 */
-
-    /**
-     * 获取语句片段
-     * @return array 分别为 FROM FIELD WHERE GROUP ORDER LIMIT
-     */
-    public function parts() {
-        $from  = '';
-        $field = '';
-        $where = '';
-        $group = '';
-        $order = '';
-        $limit = '';
-        if ($this->_limit) {
-            $limit = implode(',', $this->_limit);
-        }
-        $this->parse($from, $field, $where, $group, $order,'','','');
-        return array($from, $field, $where, $group, $order, $limit );
-    }
 
     protected function parse(&$from, &$field, &$where, &$group, &$order, $pn, $on, $by) {
         $tn = $this->_alias ? $this->_alias : $this->_table;
@@ -590,7 +575,12 @@ class FetchCase {
     protected function parseWhere(&$where, $thisWhere, $tx) {
         foreach($thisWhere as $c=>$v) {
             if (is_numeric($c)) {
-                $where .= ' AND '.$v;
+                if ( isset($this->_param)  &&  ( $v  instanceof  WhereCase ) ) {
+                    $this->_param = array_merge($this->_param, $v->getParam());
+                    $where .= ' AND '.$v->getWhere();
+                } else {
+                    $where .= ' AND '.$v;
+                }
             } else {
                 if ($this->isStdField($c)) {
                     $c  = $tx.'`'.$c.'`';
@@ -645,21 +635,42 @@ class FetchCase {
     }
 
     protected function quoteValue($val) {
+        // 采用语句与参数分离的方式
+        if (isset($this->_param)) {
+            if (is_array( $val )) {
+                $sx= array();
+                $vx= array_unique($val);
+                foreach ( $vx as &$vxl) {
+                $this->_param[] = $vxl;
+                $sx[] = '?';
+                }
+                if ($vx) {
+                    return implode(',', $sx);
+                }
+                $this->_param[] = null;
+                return  '?';
+            } else {
+                $this->_param[] = $val;
+                return  '?';
+            }
+        }
+
         if (is_null($val)) {
             return 'NULL';
         } elseif (is_numeric($val)) {
             return '\''.$val.'\'' ;
         } elseif (! is_array($val)) {
-            return '\''.$this->escapValue($val).'\'';
+            $val = $this->escapValue($val);
+            return '\''.$val.'\'';
         } else {
             $vx=array_unique($val);
             foreach ($vx as &$vxl) {
-                $vxl =  $this->quoteValue($vxl);
+            $vxl = $this->quoteValue($vxl);
             }
             if ($vx) {
-                return implode(',',$vx);
+                return implode( ',', $vx );
             } else {
-                return 'NULL';
+                return 'NULL'; // 规避 IN () 出错
             }
         }
     }
@@ -668,24 +679,47 @@ class FetchCase {
         return addslashes((string)$val);
     }
 
+    protected function escapLikes($val) {
+        return preg_replace(  '/[\/%_\[\]]/'  , '/$0', $val);
+    }
+
+    protected function trimsWhere($str) {
+        return preg_replace('/^\s*(AND|OR)\s+/' , '' , $str);
+    }
+
+    protected function trimsField($str) {
+        return trim($str, " \t\n\r\0\x0B,");
+    }
+
     protected function isStdField($key) {
-        return  preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $key);
+        return preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $key);
     }
 
     //** 获取结果 **/
 
     /**
      * 转换成查询语句
-     * @return string
+     * @param $toArr true 或 1 返回 array(sql, params), 2 返回 array(sql, params, limits)
+     * @return string|array
      */
-    public function toSelect() {
-        list($from, $field, $where, $group, $order, $limit) = $this->parts();
-        $tn = $this->_alias ? $this->_alias : $this->_table;
+    public function toSelect($toArr = false) {
+        $from  = '';
+        $field = '';
+        $where = '';
+        $group = '';
+        $order = '';
+        $this->_param = $toArr ? array( ) : null ;
+        $this->parse($from, $field, $where, $group, $order, '', '', '');
 
         if ($field) {
-            $sql = 'SELECT '.trim($field, " \t\n\r\0\x0B,");
-        } else if ($this->_joins) {
-            $sql = 'SELECT `'.$tn.'`.*' ;
+            $sql = 'SELECT '.$this->trimsField($field);
+        } else
+        if ($this->_joins) {
+        if ($this->_alias) {
+            $sql = 'SELECT `'.$this->_alias.'`.*';
+        } else {
+            $sql = 'SELECT `'.$this->_table.'`.*';
+        }
         } else {
             $sql = 'SELECT *';
         }
@@ -693,75 +727,129 @@ class FetchCase {
         $sql .= ' FROM '. $from;
 
         if ($where) {
-            $sql .= ' WHERE ' .preg_replace('/^\s*(AND|OR)\s+/', '', $where);
+            $sql .= ' WHERE '    . $this->trimsWhere($where);
         }
 
         if ($group) {
-            $sql .= ' GROUP BY '.trim($group, " \t\n\r\0\x0B,");
+            $sql .= ' GROUP BY ' . $this->trimsField($group);
         }
 
         if ($order) {
-            $sql .= ' ORDER BY '.trim($order, " \t\n\r\0\x0B,");
+            $sql .= ' ORDER BY ' . $this->trimsField($order);
         }
 
-        if ($limit) {
-            $sql .= ' LIMIT '.$limit;
+        // 仅适合 SQLite,MySQL,PGSql 等支持 LIMIT 的数据库
+        if ($toArr != 2 && $this->_limit) {
+            $sql .= ' LIMIT ' . implode(',' , $this->_limit);
         }
 
-        return $sql;
+        if ($toArr == 2) {
+            return array($sql, $this->_param, $this->_limit);
+        } else
+        if ($toArr) {
+            return array($sql, $this->_param);
+        } else {
+            return $sql;
+        }
     }
 
     /**
      * 转换成插入语句
-     * @return string
+     * @param $toArr true 返回 array(sql, params)
+     * @return string|array
      * @throws \Exception
      */
-    public function toInsert() {
+    public function toInsert($toArr = false) {
+        if (! $this->_saves) {
+            throw new \Exception('FetchCase: value can not be empty in insert.');
+        }
+
         $fs = array();
         $vs = array();
+        $this->_param = $toArr ? array() : null;
         foreach ($this->_saves as $f=>$v) {
-            $fs[] = $f;
             $vs[] = $this->quoteValue($v);
+            $fs[] = $f;
         }
-        if (!$fs || !$vs) {
-            throw new \Exception('FetchCase: value can not be empty in create.');
+        $sq = 'INSERT INTO `'.$this->_table.'` ('.implode(',', $fs).') VALUES ('.implode(',', $vs).')';
+
+        if ($toArr) {
+            return array($sq, $this->_param);
+        } else {
+            return $sq;
         }
-        return 'INSERT INTO `'.$this->_table.'` ('.implode(',', $fs).') VALUES ('.implode(',', $vs).')';
     }
 
     /**
      * 转换成更新语句
-     * @return string
+     * @param $toArr true 返回 array(sql, params)
+     * @return string|array
      * @throws \Exception
      */
-    public function toUpdate() {
-        $wh = '';
-        $this->parseWhere($wh, $this->_where, '');
-        $ss = array();
-        foreach ($this->_saves as $f=>$v) {
-            $ss[] = $f.'='. $this->quoteValue($v);
-        }
-        if (!$ss) {
+    public function toUpdate($toArr = false) {
+        if (!$this->_saves) {
             throw new \Exception('FetchCase: value can not be empty in update.');
         }
-        if (!$wh) {
+        if (!$this->_where) {
             throw new \Exception('FetchCase: where can not be empty in update.');
         }
-        return 'UPDATE `'.$this->_table.'` SET '.implode(',', $ss).' WHERE '.$wh;
+
+        $ss = array();
+        foreach ($this->_saves as $f=>$v) {
+            $ss [] = $f .'='. $this->quoteValue($v);
+        }
+
+        $wh = '';
+        $this->_param = $toArr ? array( ) : null ;
+        $this->parseWhere($wh, $this->_where, '');
+        $wh = $this->trimsWhere($wh);
+        $sq = 'UPDATE `'.$this->_table.'` SET '.implode(',', $ss).' WHERE '.$wh;
+
+        if ($toArr) {
+            return array($sq, $this->_param);
+        } else {
+            return $sq;
+        }
     }
 
     /**
      * 转换成删除语句
-     * @return string
+     * @param $toArr true 返回 array(sql, params)
+     * @return string|array
      * @throws \Exception
      */
-    public function toDelete() {
-        $wh = '';
-        $this->parseWhere($wh, $this->_where, '');
-        if (!$wh) {
-            throw new \Exception('FetchCase: where can not be empty in update.');
+    public function toDelete($toArr = false) {
+        if (!$this->_where) {
+            throw new \Exception('FetchCase: where can not be empty in delete.');
         }
-        return 'DELETE FROM `'.$this->_table.'` WHERE '.$wh;
+
+        $wh = '';
+        $this->_param = $toArr ? array( ) : null ;
+        $this->parseWhere($wh, $this->_where, '');
+        $wh = $this->trimsWhere($wh);
+        $sq = 'DELETE FROM `'. $this->_table .'` WHERE '.$wh;
+
+        if ($toArr) {
+            return array($sql, $this->_param);
+        } else {
+            return $sql;
+        }
+    }
+
+    /**
+     * 是否有待存储的数据
+     * @return type
+     */
+    public function hasSaves() {
+        return !! $this->_saves;
+    }
+
+    /**
+     * 是否有待查询的条件
+     * @return boolean
+     */
+    public function hasWhere() {
+        return !! $this->_where;
     }
 
     //** 对象操作 **/
@@ -825,4 +913,41 @@ class FetchCase {
         return $this->toSelect();
     }
 
+}
+
+class WhereCase {
+    protected $_where;
+    protected $_param;
+
+    function __construct($where, $param = array()) {
+        $this->_where = $where;
+        $this->_param = $param;
+    }
+
+    function getWhere() {
+        return $this->_where;
+    }
+
+    function getParam() {
+        return $this->_param;
+    }
+
+    function __toString() {
+        $i = 0;
+        $j = 0;
+        $w = $this->_where;
+        while (($i = strpos($w, '?', $i)) !== false) {
+            $v  = $this->quote($this->_param[$j ++]);
+            $w  = substr($w,0,$i).$v.substr($w,1+$i);
+            $i += strlen($v);
+        }
+        return $w;
+    }
+
+    private function quote($v) {
+        if (is_numeric($v)) {
+            return (string)$v;
+        }
+        return '\''.addslashes((string)$v).'\'';
+    }
 }

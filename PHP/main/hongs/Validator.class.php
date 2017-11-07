@@ -182,6 +182,10 @@ class Wrongs extends \Exception {
         $this->_wrongs = $wrongs;
     }
 
+    function getWrongs() {
+        return $_wrongs;
+    }
+
     function getErrors() {
         $errors = array();
         foreach ($this->_wrongs as $wrong) {
@@ -311,7 +315,7 @@ function _match($patt, $text, $opts) {
         return $text;
     }
 
-    throw new Wrong('is_not_'.$type, $opts);
+    throw new Wrong(_wrong('is_not_'.$type, $opts));
 }
 
 /**
@@ -324,7 +328,7 @@ function optional($v, $c, $x) {
     if (!isset($v)) {
         return _blank();
     }
-    if (is_array($v) && !$v) {
+    if (is_array($v) && ! $v) {
         return _blank();
     }
     return $v;
@@ -338,6 +342,12 @@ function optional($v, $c, $x) {
  */
 function required($v, $c, $x) {
     if (!isset($v)) {
+        if ($x->isUpdate()) {
+            return _blank();
+        }
+        throw new Wrong(_wrong('required', $c));
+    }
+    if ("" === $v ) {
         throw new Wrong(_wrong('required', $c));
     }
     if (is_array($v) && !$v) {
@@ -554,7 +564,7 @@ function isDate($v, $c, $x) {
  */
 function isEnum($v, $c, $x) {
     $a = $c['enum'];
-    if (!in_array($c , $a)) {
+    if (!in_array($v , $a)) {
         throw new Wrong(_wrong('not_in_enum', $c));
     }
     return $v;
@@ -574,5 +584,19 @@ function isEnum($v, $c, $x) {
  * @param Validator $x 校验器对象
  */
 function isFile($v, $c, $x) {
+    return $v;
+}
+
+/**
+ * 图片校验
+ * 注: 此方法尚未完成
+ * 继承全部 isFile 的选项
+ * 选项 pick 截取比例
+ * 选项 zoom 缩放大小
+ * @param mixed $v 校验取值
+ * @param array $c 外部选项
+ * @param Validator $x 校验器对象
+ */
+function isImage($v, $c, $x) {
     return $v;
 }
