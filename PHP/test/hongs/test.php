@@ -19,16 +19,16 @@ $req = array(
     'ob' => 'title',
     'wd' => 'last day',
 );
-$fet = (new FetchCase())
+$fc  = (new FetchCase())
     ->from  ('a_meeting_base_info')
     ->join  ('a_company_base_info', 'company', '~.id = ^.company_id', 'INNER')
     ->allow (array('meeting_id', 'title', 'summary', 'status', 'company.id', 'company.title', 'company.summary'))
     ->allow (array('title', 'summary'), 'wd')
     ->allow (array('-summary'), 'ob')
     ->trans ($req);
-$sql  = $fet->toSelect(  );
-echo $sql.PHP_EOL.PHP_EOL ;
-print_r($fet->toSelect(2));
+$sql =  $fc->toSelect(  );
+print_r($fc->toSelect(2));
+echo $sql.PHP_EOL.PHP_EOL;
 
 //** 操作插入语句 **/
 
@@ -44,15 +44,18 @@ $fc  = (new FetchCase())
 $sql = $fc
     ->saves ($req)
     ->toInsert();
+print_r($fc->toInsert(1));
 echo $sql.PHP_EOL.PHP_EOL;
 $sql = $fc
     ->saves ($req)
     ->where (array('meeting_id'=>$req['id']))
     ->toUpdate();
+print_r($fc->toUpdate(1));
 echo $sql.PHP_EOL.PHP_EOL;
 $sql = $fc
     ->where (array('meeting_id'=>$req['id']))
     ->toDelete();
+print_r($fc->toDelete(1));
 echo $sql.PHP_EOL.PHP_EOL;
 
 //** 手动关联 **/
