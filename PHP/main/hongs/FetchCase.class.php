@@ -593,7 +593,7 @@ class FetchCase {
     protected function parseWhere(&$where, &$param, $thisWhere, $tx) {
         foreach($thisWhere as $c=>$v) {
             if (is_numeric($c)) {
-                if (! is_null($param) && ($v instanceof WhereCase) ) {print_r($v);
+                if (! is_null($param) && ($v instanceof WhereCase) ) {
                     $param  = array_merge($param , $v->getParam( ) );
                     $where .= ' AND '.$v->getWhere();
                 } else {
