@@ -20,8 +20,9 @@ $req = array(
     'wd' => 'last day',
 );
 $fc  = (new FetchCase())
-    ->from  ('a_meeting_base_info')
+    ->from  ('a_meeting_base_info', 'meeting')
     ->join  ('a_company_base_info', 'company', '~.id = ^.company_id', 'INNER')
+    ->where (new WhereCase('meeting.meeting_id > ?', array(789)))
     ->allow (array('meeting_id', 'title', 'summary', 'status', 'company.id', 'company.title', 'company.summary'))
     ->allow (array('title', 'summary'), 'wd')
     ->allow (array('-summary'), 'ob')

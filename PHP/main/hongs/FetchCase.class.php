@@ -593,7 +593,7 @@ class FetchCase {
     protected function parseWhere(&$where, &$param, $thisWhere, $tx) {
         foreach($thisWhere as $c=>$v) {
             if (is_numeric($c)) {
-                if (! is_null($param) && ($v instanceof WhereCase) ) {
+                if (! is_null($param) && ($v instanceof WhereCase) ) {print_r($v);
                     $param  = array_merge($param , $v->getParam( ) );
                     $where .= ' AND '.$v->getWhere();
                 } else {
@@ -950,6 +950,12 @@ class WhereCase {
     protected $_param;
 
     function __construct($where, $param = array()) {
+        $qc = substr_count($where, '?');
+        $pc =        count($param     );
+        if ($qc != $pc) {
+            throw new \Eexception('WhereCase: there are '.$qc.' ? but '.$pc.' values');
+        }
+
         $this->_where = $where;
         $this->_param = $param;
     }
