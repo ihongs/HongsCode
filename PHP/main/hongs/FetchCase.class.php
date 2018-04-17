@@ -316,7 +316,7 @@ class FetchCase {
 
         foreach($v as $t) {
             $t = trim($t);
-            if ('' == $t) {
+            if (''=== $t) {
                 continue ;
             }
             $t = '%'. $this->escapLikes ($t) .'%';
@@ -498,19 +498,19 @@ class FetchCase {
             $from .= ' ON ' . $on ;
         }
 
-        if ($this->_field) {
+        if ($this->_field && $field !== null) {
             $this->parseField($field, $param, $this->_field, $tx, $tz);
         }
 
-        if ($this->_where) {
+        if ($this->_where && $where !== null) {
             $this->parseWhere($where, $param, $this->_where, $tx);
         }
 
-        if ($this->_group) {
+        if ($this->_group && $group !== null) {
             $this->parseGroup($group, $param, $this->_group, $tx);
         }
 
-        if ($this->_order) {
+        if ($this->_order && $order !== null) {
             $this->parseOrder($order, $param, $this->_order, $tx);
         }
 
@@ -616,6 +616,12 @@ class FetchCase {
                         $r = $this->escapSigns($r2);
                         if (! $r) continue;
                         unset($v [ $r2 ] );
+
+                        // 对数值范围和模糊查询, 空串没有意义, 跳过. Fixed by HuangHong, 2018/4/17
+                        if (in_array($r, array('<', '<=', '>', '>=', 'LIKE', 'NOT LIKE'))
+                        &&  !$v2 && $v2 !== 0 && $v2 !== '0') {
+                            continue;
+                        }
 
                         if ($r ==  'IN'  || $r ==  'NOT IN' ) {
                             $v2 = $this->quoteValue($v2, $param);
@@ -771,6 +777,40 @@ class FetchCase {
         if ($toArr == 2) {
             return array($sql, $param, $this->_limit);
         } else
+        if ($toArr) {
+            return array($sql, $param);
+        } else {
+            return $sql;
+        }
+    }
+
+    /**
+     * 转换成计行语句
+     * @param $toArr true 或 1 返回 array(sql, params)
+     * @return string|array
+     */
+    public function toCounts($toArr = false) {
+        $from  = '';
+        $field = null;
+        $where = '';
+        $group = '';
+        $order = null;
+        $param = $toArr ? array() : null;
+        $this->parse($from, $field, $where, $group, $order, $param, '', '', '');
+
+        $sql = ' FROM ' . $from;
+
+        if ($where) {
+            $sql .= ' WHERE '    . $this->trimsWhere($where);
+        }
+
+        if ($group) {
+            $sql .= ' GROUP BY ' . $this->trimsField($group);
+            $sql  = 'SELECT COUNT(1) AS `c` FROM (SELECT 1' . $sql . ') AS `t`';
+        } else {
+            $sql  = 'SELECT COUNT(1) AS `c`' . $sql;
+        }
+
         if ($toArr) {
             return array($sql, $param);
         } else {

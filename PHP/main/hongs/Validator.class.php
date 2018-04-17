@@ -29,10 +29,13 @@ class Validator {
      * @param array  $opts 附件选项
      */
     public function addRule($name, $rule, $opts = array()) {
-        if (  !  is_array($rule)) {
-            $rule = array($rule);
+        if (! is_array($rule)) {
+            $rule = array( $rule );
         }
-        foreach ($rule as $func)  {
+        if (! $opts['label'] ) {
+            $opts['label'] = $name;
+        }
+        foreach ($rule as $func) {
             $this->_rules[$name][] = array($func, &$opts);
         }
         return $this;
@@ -426,10 +429,10 @@ function defoult($v, $c, $x) {
     if ($x->isUpdate() && $c['default-create']) {
         return _blank();
     }
-    if (isset( $v ) && !  $c['defualt-always']) {
+    if (isset( $v ) && !  $c['default-always']) {
         return $v ;
     }
-    $v = $c['defualt'];
+    $v = $c['default'];
     return $v;
 }
 
