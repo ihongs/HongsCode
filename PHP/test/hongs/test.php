@@ -16,7 +16,8 @@ $req = array(
     'rb' => 'title,company_*',
     'pn' => 2,
     'rn' => 30,
-    'ob' => 'title',
+    'ob' => 'title,-company_title',
+    'rb' => 'meeting_id,title,def',
     'wd' => 'last day',
 );
 $fc  = (new FetchCase())
@@ -37,6 +38,7 @@ $req = array(
     'title' => 'abc',
     'summary' => 'def',
     'id' => array('123', '456'),
+    'age' => '123123',
 );
 $fc  = (new FetchCase())
     ->from  ('a_meeting_base_info')
